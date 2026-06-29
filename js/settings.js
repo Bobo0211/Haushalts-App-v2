@@ -1,11 +1,10 @@
 import { getCurrentProfile, getProfiles, updateProfile, uploadAvatar, buildAvatarHTML, selectProfile } from './auth.js';
-import { subscribePush, unsubscribePush, isPushSubscribed, sendTestPush } from './push.js';
 import { showToast } from './app.js';
 
 export async function renderSettings() {
   const profile = getCurrentProfile();
   const profiles = getProfiles();
-  const pushEnabled = await isPushSubscribed();
+  const pushEnabled = await window.isPushSubscribed();
 
   const container = document.getElementById('settings-content');
   container.innerHTML = `
@@ -130,10 +129,10 @@ export async function renderSettings() {
   container.querySelector('#push-toggle').addEventListener('change', async e => {
     try {
       if (e.target.checked) {
-        await subscribePush();
+        await window.subscribePush();
         showToast('Push aktiviert');
       } else {
-        await unsubscribePush();
+        await window.unsubscribePush();
         showToast('Push deaktiviert');
       }
     } catch (err) {
@@ -145,7 +144,7 @@ export async function renderSettings() {
   // Test push
   container.querySelector('#btn-test-push').addEventListener('click', async () => {
     try {
-      await sendTestPush();
+      await window.sendTestPush();
       showToast('Test-Push gesendet');
     } catch {
       showToast('Push-Test fehlgeschlagen');

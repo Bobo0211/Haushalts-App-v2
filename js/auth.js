@@ -120,3 +120,6 @@ export async function uploadAvatar(file) {
 function escHtml(str) {
   return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+
+// Expose for push.js (no-module script)
+window.getCurrentProfile = getCurrentProfile;

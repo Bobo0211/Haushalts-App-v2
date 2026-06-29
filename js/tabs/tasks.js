@@ -1,6 +1,5 @@
 import { getCurrentProfile, getProfiles, getOtherProfile, buildAvatarHTML } from '../auth.js';
 import { showToast, openModal } from '../app.js';
-import { notifyTaskDone } from '../push.js';
 
 const CATEGORIES = [
   { key: 'kitchen',    label: 'Küche',       emoji: '🍳' },
@@ -195,7 +194,7 @@ async function toggleTask(task) {
     });
 
     const assignee = profiles.find(p => p.id === task.assigned_to);
-    if (assignee && assignee.id !== profile.id) notifyTaskDone(task, assignee);
+    if (assignee && assignee.id !== profile.id) window.notifyTaskDone(task, assignee);
 
     if (task.recurrence && task.recurrence !== 'once') {
       updates.is_done = false;

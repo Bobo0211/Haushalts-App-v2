@@ -1,6 +1,3 @@
-import { window.db, SUPABASE_URL, SUPABASE_ANON_KEY } from './supabase-client.js'; // Key kommt aus supabase-client.js
-import { getCurrentProfile } from './auth.js';
-
 const VAPID_PUBLIC_KEY = 'BKFwMUvHiFygL3zoYOV3agbroVmooHXGlujdOMoWEw8ng-7ZeunBTwiqfh6S7_bLsUPLgCcStW6p6PXL2E9HRbA';
 
 function urlBase64ToUint8Array(base64String) {
@@ -10,7 +7,7 @@ function urlBase64ToUint8Array(base64String) {
   return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
 }
 
-export async function subscribePush() {
+async function subscribePush() {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
     throw new Error('Push nicht unterstützt');
   }
@@ -24,7 +21,7 @@ export async function subscribePush() {
     applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
   });
 
-  const profile = getCurrentProfile();
+  const profile = window.getCurrentProfile();
   const { error } = await window.db
     .from('push_subscriptions')
     .upsert({
@@ -36,19 +33,19 @@ export async function subscribePush() {
   return sub;
 }
 
-export async function unsubscribePush() {
+async function unsubscribePush() {
   const reg = await navigator.serviceWorker.ready;
   const sub = await reg.pushManager.getSubscription();
   if (sub) await sub.unsubscribe();
 
-  const profile = getCurrentProfile();
+  const profile = window.getCurrentProfile();
   await window.db
     .from('push_subscriptions')
     .delete()
     .eq('profile_id', profile.id);
 }
 
-export async function isPushSubscribed() {
+async function isPushSubscribed() {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
   try {
     const reg = await navigator.serviceWorker.ready;
@@ -59,13 +56,13 @@ export async function isPushSubscribed() {
   }
 }
 
-export async function sendTestPush() {
-  const profile = getCurrentProfile();
-  const resp = await fetch(`${SUPABASE_URL}/functions/v1/send-push`, {
+async function sendTestPush() {
+  const profile = window.getCurrentProfile();
+  const resp = await fetch(`${window.SUPABASE_URL}/functions/v1/send-push`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      'Authorization': `Bearer ${window.SUPABASE_ANON_KEY}`,
     },
     body: JSON.stringify({
       profile_id: profile.id,
@@ -76,15 +73,14 @@ export async function sendTestPush() {
   if (!resp.ok) throw new Error('Push fehlgeschlagen');
 }
 
-export async function notifyTaskDone(task, assignedProfile) {
+async function notifyTaskDone(task, assignedProfile) {
   if (!assignedProfile) return;
-  const profile = getCurrentProfile();
-  // Notify the other person when they complete a task
-  fetch(`${SUPABASE_URL}/functions/v1/send-push`, {
+  const profile = window.getCurrentProfile();
+  fetch(`${window.SUPABASE_URL}/functions/v1/send-push`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      'Authorization': `Bearer ${window.SUPABASE_ANON_KEY}`,
     },
     body: JSON.stringify({
       profile_id: assignedProfile.id,
@@ -93,3 +89,9 @@ export async function notifyTaskDone(task, assignedProfile) {
     }),
   }).catch(() => {});
 }
+
+window.subscribePush = subscribePush;
+window.unsubscribePush = unsubscribePush;
+window.isPushSubscribed = isPushSubscribed;
+window.sendTestPush = sendTestPush;
+window.notifyTaskDone = notifyTaskDone;
