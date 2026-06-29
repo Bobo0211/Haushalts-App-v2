@@ -1,5 +1,5 @@
 import { getCurrentProfile } from '../auth.js';
-import { showToast, openModal } from '../app.js';
+import { showToast, openModal, parseLocalDate, toLocalDateString } from '../app.js';
 
 let mealplan = [];
 let recipes = [];
@@ -40,7 +40,7 @@ export function onRealtimeRecipes() {
 
 function getWeekDays() {
   const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  today.setHours(12, 0, 0, 0);
   const monday = new Date(today);
   monday.setDate(today.getDate() - ((today.getDay() + 6) % 7) + weekOffset * 7);
   return Array.from({ length: 7 }, (_, i) => {
@@ -70,7 +70,7 @@ export function renderMealplan() {
 
   const daysEl = pane.querySelector('#mealplan-days');
   days.forEach(day => {
-    const iso = day.toISOString().split('T')[0];
+    const iso = toLocalDateString(day);
     const entry = mealplan.find(m => m.plan_date === iso);
     const recipe = entry?.recipe;
 
@@ -112,7 +112,7 @@ function openAssignModal(date, existingId) {
 
   openModal('Rezept zuweisen', `
     <div class="form-group">
-      <label>Rezept für ${new Date(date + 'T00:00:00').toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })}</label>
+      <label>Rezept für ${parseLocalDate(date).toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })}</label>
       <select id="meal-recipe-select">
         <option value="">– Kein Rezept –</option>
         ${options}

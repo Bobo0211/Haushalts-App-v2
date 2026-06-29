@@ -7,6 +7,19 @@ import { initRecipes, renderRecipes, onRealtimeRecipes } from './tabs/recipes.js
 import { initBalance, renderBalance, onRealtimePointEvents, onRealtimeProfiles } from './tabs/balance.js';
 import { renderSettings } from './settings.js';
 
+// ─── Date helpers ─────────────────────────────────────────────────────────────
+// Prevents UTC-midnight-shifting dates by one day in UTC+N timezones
+export function parseLocalDate(dateString) {
+  return new Date(dateString + 'T12:00:00');
+}
+export function toLocalDateString(date) {
+  const d = (typeof date === 'string') ? parseLocalDate(date) : date;
+  const year  = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day   = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 // ─── Toast ────────────────────────────────────────────────────────────────────
 let toastTimer = null;
 export function showToast(msg) {

@@ -1,5 +1,5 @@
 import { getCurrentProfile, getProfiles, getOtherProfile, buildAvatarHTML } from '../auth.js';
-import { showToast, openModal } from '../app.js';
+import { showToast, openModal, parseLocalDate, toLocalDateString } from '../app.js';
 
 const CATEGORIES = [
   { value: 'Küche',       emoji: '🍳' },
@@ -61,7 +61,7 @@ export function renderTasks() {
   if (!showDone) filtered = filtered.filter(t => !t.is_done);
 
   const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  today.setHours(12, 0, 0, 0);
 
   const days = [];
   for (let i = -1; i <= 12; i++) {
@@ -70,7 +70,7 @@ export function renderTasks() {
     days.push(d);
   }
 
-  if (!selectedDate) selectedDate = today.toISOString().split('T')[0];
+  if (!selectedDate) selectedDate = toLocalDateString(today);
 
   pane.innerHTML = `
     <div class="date-strip" id="tasks-date-strip"></div>
@@ -93,7 +93,7 @@ export function renderTasks() {
   // Date strip
   const strip = pane.querySelector('#tasks-date-strip');
   days.forEach(d => {
-    const iso = d.toISOString().split('T')[0];
+    const iso = toLocalDateString(d);
     const hasTasks = tasks.some(t => t.scheduled_date === iso);
     const pill = document.createElement('button');
     pill.className = 'date-pill' + (iso === selectedDate ? ' active' : '');
@@ -139,7 +139,7 @@ export function renderTasks() {
     dateTasks.forEach(task => {
       const assignee = profiles.find(p => p.id === task.assigned_to);
       const cat = getCategoryInfo(task.category);
-      const now = new Date().toISOString().split('T')[0];
+      const now = toLocalDateString(new Date());
       const overdue = task.scheduled_date && task.scheduled_date < now && !task.is_done;
 
       const item = document.createElement('div');
@@ -212,14 +212,14 @@ async function toggleTask(task) {
 }
 
 function calcNextDueDate(currentDue, recurrence) {
-  const d = currentDue ? new Date(currentDue) : new Date();
+  const d = currentDue ? parseLocalDate(currentDue) : new Date();
   switch (recurrence) {
     case 'daily':    d.setDate(d.getDate() + 1); break;
     case 'weekly':   d.setDate(d.getDate() + 7); break;
     case 'biweekly': d.setDate(d.getDate() + 14); break;
     case 'monthly':  d.setMonth(d.getMonth() + 1); break;
   }
-  return d.toISOString().split('T')[0];
+  return toLocalDateString(d);
 }
 
 async function deleteTask(id) {
