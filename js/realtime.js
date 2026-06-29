@@ -5,7 +5,7 @@ const channels = [];
 export function subscribeAll(callbacks) {
   unsubscribeAll();
 
-  const tables = ['tasks', 'recipes', 'mealplan', 'shopping', 'point_events', 'profiles'];
+  const tables = ['tasks', 'recipes', 'meal_plan', 'shopping_items', 'point_events', 'profiles'];
 
   tables.forEach(table => {
     const ch = supabase

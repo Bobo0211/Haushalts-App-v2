@@ -1,12 +1,12 @@
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from './supabase-client.js'; // Key kommt aus supabase-client.js
 import { getCurrentProfile } from './auth.js';
 
-const VAPID_PUBLIC_KEY = 'BPYaHd7-TwIDYKF0P6mFZSFtQgALbVj3_eujrRIJFKVo0aZEFyQJnHJ_d68Yb-_8HaFd7bBCVFGZEm1C-Tskbhc';
+const VAPID_PUBLIC_KEY = 'BKFwMUvHiFygL3zoYOV3agbroVmooHXGlujdOMoWEw8ng-7ZeunBTwiqfh6S7_bLsUPLgCcStW6p6PXL2E9HRbA';
 
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-  const rawData = atob(base64);
+  const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
   return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
 }
 

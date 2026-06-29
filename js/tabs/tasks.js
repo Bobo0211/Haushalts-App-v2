@@ -4,21 +4,21 @@ import { showToast, openModal } from '../app.js';
 import { notifyTaskDone } from '../push.js';
 
 const CATEGORIES = [
-  { key: 'kitchen',    label: 'Küche',      emoji: '🍳' },
-  { key: 'bathroom',   label: 'Bad',         emoji: '🚿' },
-  { key: 'living',     label: 'Wohnzimmer',  emoji: '🛋️' },
-  { key: 'bedroom',    label: 'Schlafzimmer',emoji: '🛏️' },
-  { key: 'shopping',   label: 'Einkauf',     emoji: '🛒' },
-  { key: 'laundry',    label: 'Wäsche',      emoji: '👕' },
-  { key: 'misc',       label: 'Sonstiges',   emoji: '📦' },
+  { key: 'kitchen',    label: 'Küche',       emoji: '🍳' },
+  { key: 'bathroom',   label: 'Bad',          emoji: '🚿' },
+  { key: 'living',     label: 'Wohnzimmer',   emoji: '🛋️' },
+  { key: 'bedroom',    label: 'Schlafzimmer', emoji: '🛏️' },
+  { key: 'shopping',   label: 'Einkauf',      emoji: '🛒' },
+  { key: 'laundry',    label: 'Wäsche',       emoji: '👕' },
+  { key: 'misc',       label: 'Sonstiges',    emoji: '📦' },
 ];
 
 const RECURRENCE_LABELS = {
-  once:      'Einmalig',
-  daily:     'Täglich',
-  weekly:    'Wöchentlich',
-  biweekly:  'Alle 2 Wochen',
-  monthly:   'Monatlich',
+  once:     'Einmalig',
+  daily:    'Täglich',
+  weekly:   'Wöchentlich',
+  biweekly: 'Alle 2 Wochen',
+  monthly:  'Monatlich',
 };
 
 let tasks = [];
@@ -36,7 +36,7 @@ async function loadTasks() {
   const { data, error } = await supabase
     .from('tasks')
     .select('*')
-    .order('due_date', { ascending: true, nullsFirst: false });
+    .order('scheduled_date', { ascending: true, nullsFirst: false });
   if (!error) tasks = data ?? [];
 }
 
@@ -60,13 +60,11 @@ export function renderTasks() {
   let filtered = tasks;
   if (filterCategory !== 'all') filtered = filtered.filter(t => t.category === filterCategory);
   if (filterMine) filtered = filtered.filter(t => t.assigned_to === profile?.id);
-  if (!showDone) filtered = filtered.filter(t => !t.done);
+  if (!showDone) filtered = filtered.filter(t => !t.is_done);
 
-  // Group by selected date if a date pill is selected
   const today = new Date();
-  today.setHours(0,0,0,0);
+  today.setHours(0, 0, 0, 0);
 
-  // Build 14-day window for date strip
   const days = [];
   for (let i = -1; i <= 12; i++) {
     const d = new Date(today);
@@ -98,7 +96,7 @@ export function renderTasks() {
   const strip = pane.querySelector('#tasks-date-strip');
   days.forEach(d => {
     const iso = d.toISOString().split('T')[0];
-    const hasTasks = tasks.some(t => t.due_date === iso);
+    const hasTasks = tasks.some(t => t.scheduled_date === iso);
     const pill = document.createElement('button');
     pill.className = 'date-pill' + (iso === selectedDate ? ' active' : '');
     pill.innerHTML = `
@@ -106,10 +104,7 @@ export function renderTasks() {
       <span class="day-num">${d.getDate()}</span>
       ${hasTasks ? '<span class="task-dot"></span>' : '<span style="height:5px"></span>'}
     `;
-    pill.addEventListener('click', () => {
-      selectedDate = iso;
-      renderTasks();
-    });
+    pill.addEventListener('click', () => { selectedDate = iso; renderTasks(); });
     strip.appendChild(pill);
   });
 
@@ -129,19 +124,12 @@ export function renderTasks() {
     filterBar.appendChild(chip);
   });
 
-  // Toggle handlers
-  pane.querySelector('#btn-toggle-done').addEventListener('click', () => {
-    showDone = !showDone;
-    renderTasks();
-  });
-  pane.querySelector('#btn-filter-mine').addEventListener('click', () => {
-    filterMine = !filterMine;
-    renderTasks();
-  });
+  pane.querySelector('#btn-toggle-done').addEventListener('click', () => { showDone = !showDone; renderTasks(); });
+  pane.querySelector('#btn-filter-mine').addEventListener('click', () => { filterMine = !filterMine; renderTasks(); });
 
-  // Task list – show tasks for selected date + undated tasks
+  // Task list – tasks for selected date + undated tasks
   const listEl = pane.querySelector('#tasks-list');
-  const dateTasks = filtered.filter(t => t.due_date === selectedDate || !t.due_date);
+  const dateTasks = filtered.filter(t => t.scheduled_date === selectedDate || !t.scheduled_date);
 
   if (dateTasks.length === 0) {
     listEl.innerHTML = `
@@ -154,13 +142,13 @@ export function renderTasks() {
       const assignee = profiles.find(p => p.id === task.assigned_to);
       const cat = getCategoryInfo(task.category);
       const now = new Date().toISOString().split('T')[0];
-      const overdue = task.due_date && task.due_date < now && !task.done;
+      const overdue = task.scheduled_date && task.scheduled_date < now && !task.is_done;
 
       const item = document.createElement('div');
-      item.className = 'task-item' + (task.done ? ' done' : '');
+      item.className = 'task-item' + (task.is_done ? ' done' : '');
       item.innerHTML = `
-        <button class="task-check ${task.done ? 'checked' : ''}" data-id="${task.id}" aria-label="Abhaken">
-          ${task.done ? '✓' : ''}
+        <button class="task-check ${task.is_done ? 'checked' : ''}" aria-label="Abhaken">
+          ${task.is_done ? '✓' : ''}
         </button>
         <div class="task-body">
           <div class="task-title">${escHtml(task.title)}</div>
@@ -173,8 +161,8 @@ export function renderTasks() {
           </div>
         </div>
         <div class="task-actions">
-          <button class="btn btn-icon btn-secondary btn-edit-task" data-id="${task.id}" title="Bearbeiten">✏️</button>
-          <button class="btn btn-icon btn-secondary btn-delete-task" data-id="${task.id}" title="Löschen">🗑️</button>
+          <button class="btn btn-icon btn-secondary btn-edit-task" title="Bearbeiten">✏️</button>
+          <button class="btn btn-icon btn-secondary btn-delete-task" title="Löschen">🗑️</button>
         </div>
       `;
 
@@ -191,35 +179,28 @@ export function renderTasks() {
 async function toggleTask(task) {
   const profile = getCurrentProfile();
   const profiles = getProfiles();
-  const newDone = !task.done;
+  const newDone = !task.is_done;
 
-  const updates = { done: newDone };
+  const updates = { is_done: newDone };
 
   if (newDone && task.points) {
-    // Credit points
     await supabase.from('profiles')
       .update({ total_points: (profile.total_points ?? 0) + task.points })
       .eq('id', profile.id);
 
     await supabase.from('point_events').insert({
       profile_id: profile.id,
-      task_id: task.id,
+      task_id:    task.id,
       task_title: task.title,
-      points: task.points,
+      points:     task.points,
     });
 
-    // Notify assigned person if different
     const assignee = profiles.find(p => p.id === task.assigned_to);
-    if (assignee && assignee.id !== profile.id) {
-      notifyTaskDone(task, assignee);
-    }
+    if (assignee && assignee.id !== profile.id) notifyTaskDone(task, assignee);
 
-    // Reset recurring task
     if (task.recurrence && task.recurrence !== 'once') {
-      updates.done = false;
-      updates.due_date = calcNextDueDate(task.due_date, task.recurrence);
-
-      // Alternating assignment
+      updates.is_done = false;
+      updates.scheduled_date = calcNextDueDate(task.scheduled_date, task.recurrence);
       if (task.alternating) {
         const other = getOtherProfile();
         if (other) updates.assigned_to = other.id;
@@ -260,7 +241,7 @@ function openTaskForm(task = null) {
     `<option value="${c.key}" ${task?.category === c.key ? 'selected' : ''}>${c.emoji} ${c.label}</option>`
   ).join('');
 
-  const recOptions = Object.entries(RECURRENCE_LABELS).map(([k,v]) =>
+  const recOptions = Object.entries(RECURRENCE_LABELS).map(([k, v]) =>
     `<option value="${k}" ${(task?.recurrence ?? 'once') === k ? 'selected' : ''}>${v}</option>`
   ).join('');
 
@@ -292,7 +273,7 @@ function openTaskForm(task = null) {
       </div>
       <div class="form-group">
         <label>Fälligkeitsdatum</label>
-        <input type="date" name="due_date" value="${task?.due_date ?? selectedDate ?? ''}" />
+        <input type="date" name="scheduled_date" value="${task?.scheduled_date ?? selectedDate ?? ''}" />
       </div>
       <div class="toggle-row form-group">
         <span class="toggle-label">Zuweisung wechselt automatisch</span>
@@ -301,9 +282,9 @@ function openTaskForm(task = null) {
           <span class="toggle-track"></span>
         </label>
       </div>
-      <div style="display:flex;gap:8px;margin-top:8px">
-        <button type="submit" class="btn btn-primary btn-block">${isEdit ? 'Speichern' : 'Aufgabe anlegen'}</button>
-      </div>
+      <button type="submit" class="btn btn-primary btn-block" style="margin-top:8px">
+        ${isEdit ? 'Speichern' : 'Aufgabe anlegen'}
+      </button>
     </form>
   `;
 
@@ -313,13 +294,13 @@ function openTaskForm(task = null) {
     e.preventDefault();
     const fd = new FormData(e.target);
     const payload = {
-      title:       fd.get('title'),
-      category:    fd.get('category'),
-      assigned_to: fd.get('assigned_to'),
-      recurrence:  fd.get('recurrence'),
-      points:      parseInt(fd.get('points') ?? '1', 10),
-      due_date:    fd.get('due_date') || null,
-      alternating: fd.get('alternating') === 'on',
+      title:          fd.get('title'),
+      category:       fd.get('category'),
+      assigned_to:    fd.get('assigned_to'),
+      recurrence:     fd.get('recurrence'),
+      points:         parseInt(fd.get('points') ?? '1', 10),
+      scheduled_date: fd.get('scheduled_date') || null,
+      alternating:    fd.get('alternating') === 'on',
     };
 
     const btn = e.target.querySelector('[type=submit]');
@@ -330,10 +311,15 @@ function openTaskForm(task = null) {
     if (isEdit) {
       ({ error } = await supabase.from('tasks').update(payload).eq('id', task.id));
     } else {
-      ({ error } = await supabase.from('tasks').insert({ ...payload, done: false }));
+      ({ error } = await supabase.from('tasks').insert({ ...payload, is_done: false }));
     }
 
-    if (error) { showToast('Fehler beim Speichern'); btn.disabled = false; btn.textContent = isEdit ? 'Speichern' : 'Aufgabe anlegen'; return; }
+    if (error) {
+      showToast('Fehler beim Speichern');
+      btn.disabled = false;
+      btn.textContent = isEdit ? 'Speichern' : 'Aufgabe anlegen';
+      return;
+    }
     document.getElementById('modal-generic').classList.add('hidden');
     showToast(isEdit ? 'Aufgabe aktualisiert' : 'Aufgabe angelegt');
   });

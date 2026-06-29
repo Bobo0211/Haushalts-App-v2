@@ -1,15 +1,16 @@
 import { supabase } from '../supabase-client.js';
+import { getCurrentProfile } from '../auth.js';
 import { showToast } from '../app.js';
 
 const CATEGORIES = [
-  { key: 'produce',   label: 'Obst & Gemüse', emoji: '🥦' },
-  { key: 'dairy',     label: 'Milchprodukte',  emoji: '🧀' },
-  { key: 'meat',      label: 'Fleisch',         emoji: '🥩' },
-  { key: 'bakery',    label: 'Backwaren',       emoji: '🥖' },
-  { key: 'frozen',    label: 'Tiefkühl',        emoji: '🧊' },
-  { key: 'drinks',    label: 'Getränke',        emoji: '🥤' },
-  { key: 'hygiene',   label: 'Hygiene',         emoji: '🧴' },
-  { key: 'misc',      label: 'Sonstiges',       emoji: '📦' },
+  { key: 'produce',  label: 'Obst & Gemüse', emoji: '🥦' },
+  { key: 'dairy',    label: 'Milchprodukte',  emoji: '🧀' },
+  { key: 'meat',     label: 'Fleisch',        emoji: '🥩' },
+  { key: 'bakery',   label: 'Backwaren',      emoji: '🥖' },
+  { key: 'frozen',   label: 'Tiefkühl',       emoji: '🧊' },
+  { key: 'drinks',   label: 'Getränke',       emoji: '🥤' },
+  { key: 'hygiene',  label: 'Hygiene',        emoji: '🧴' },
+  { key: 'misc',     label: 'Sonstiges',      emoji: '📦' },
 ];
 
 let items = [];
@@ -17,9 +18,9 @@ let filterCategory = 'all';
 
 export async function initShopping() {
   const { data, error } = await supabase
-    .from('shopping')
+    .from('shopping_items')
     .select('*')
-    .order('category')
+    .order('shop_category')
     .order('name');
   if (!error) items = data ?? [];
   renderShopping();
@@ -80,30 +81,36 @@ export function renderShopping() {
   pane.querySelector('#shopping-add-form').addEventListener('submit', async e => {
     e.preventDefault();
     const name = document.getElementById('shopping-input').value.trim();
-    const category = document.getElementById('shopping-cat').value;
+    const shop_category = document.getElementById('shopping-cat').value;
     if (!name) return;
-    const { error } = await supabase.from('shopping').insert({ name, category, done: false });
+    const profile = getCurrentProfile();
+    const { error } = await supabase.from('shopping_items').insert({
+      name,
+      shop_category,
+      is_checked: false,
+      added_by: profile?.id ?? null,
+    });
     if (error) { showToast('Fehler beim Hinzufügen'); return; }
     document.getElementById('shopping-input').value = '';
   });
 
   // Clear done
   pane.querySelector('#btn-clear-done').addEventListener('click', async () => {
-    const doneIds = items.filter(i => i.done).map(i => i.id);
+    const doneIds = items.filter(i => i.is_checked).map(i => i.id);
     if (!doneIds.length) { showToast('Keine erledigten Artikel'); return; }
-    await supabase.from('shopping').delete().in('id', doneIds);
+    await supabase.from('shopping_items').delete().in('id', doneIds);
     showToast('Erledigte Artikel gelöscht');
   });
 
   // List
   const listEl = pane.querySelector('#shopping-list');
   let filtered = items;
-  if (filterCategory !== 'all') filtered = filtered.filter(i => i.category === filterCategory);
+  if (filterCategory !== 'all') filtered = filtered.filter(i => i.shop_category === filterCategory);
 
   // Group by category
   const grouped = {};
   filtered.forEach(item => {
-    const key = item.category ?? 'misc';
+    const key = item.shop_category ?? 'misc';
     if (!grouped[key]) grouped[key] = [];
     grouped[key].push(item);
   });
@@ -125,12 +132,13 @@ export function renderShopping() {
 
     catItems.forEach(item => {
       const el = document.createElement('div');
-      el.className = 'shopping-item' + (item.done ? ' done' : '');
+      el.className = 'shopping-item' + (item.is_checked ? ' done' : '');
       el.innerHTML = `
-        <button class="task-check ${item.done ? 'checked' : ''}" aria-label="Abhaken">
-          ${item.done ? '✓' : ''}
+        <button class="task-check ${item.is_checked ? 'checked' : ''}" aria-label="Abhaken">
+          ${item.is_checked ? '✓' : ''}
         </button>
         <span class="shopping-name">${escHtml(item.name)}</span>
+        ${item.amount || item.unit ? `<span style="font-size:13px;color:var(--text-secondary)">${escHtml(item.amount ?? '')} ${escHtml(item.unit ?? '')}</span>` : ''}
         <button class="btn btn-icon btn-secondary btn-del-item" title="Löschen">🗑️</button>
       `;
       el.querySelector('.task-check').addEventListener('click', () => toggleItem(item));
@@ -143,11 +151,11 @@ export function renderShopping() {
 }
 
 async function toggleItem(item) {
-  await supabase.from('shopping').update({ done: !item.done }).eq('id', item.id);
+  await supabase.from('shopping_items').update({ is_checked: !item.is_checked }).eq('id', item.id);
 }
 
 async function deleteItem(id) {
-  await supabase.from('shopping').delete().eq('id', id);
+  await supabase.from('shopping_items').delete().eq('id', id);
 }
 
 function escHtml(str) {

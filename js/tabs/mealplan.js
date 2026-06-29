@@ -1,4 +1,5 @@
 import { supabase } from '../supabase-client.js';
+import { getCurrentProfile } from '../auth.js';
 import { showToast, openModal } from '../app.js';
 
 let mealplan = [];
@@ -7,7 +8,7 @@ let weekOffset = 0;
 
 export async function initMealplan() {
   const [mpRes, recRes] = await Promise.all([
-    supabase.from('mealplan').select('*, recipe:recipe_id(*)'),
+    supabase.from('meal_plan').select('*, recipe:recipe_id(*)'),
     supabase.from('recipes').select('id, title, emoji').order('title'),
   ]);
   mealplan = mpRes.data ?? [];
@@ -19,17 +20,16 @@ export function onRealtimeMealplan(payload) {
   const { eventType, new: n, old: o } = payload;
   if (eventType === 'DELETE') {
     mealplan = mealplan.filter(m => m.id !== o.id);
-  } else {
-    // Reload full row with join
-    supabase.from('mealplan').select('*, recipe:recipe_id(*)').eq('id', n.id).single().then(({ data }) => {
-      if (!data) return;
-      if (eventType === 'INSERT') mealplan = [...mealplan, data];
-      else mealplan = mealplan.map(m => m.id === data.id ? data : m);
-      renderMealplan();
-    });
+    renderMealplan();
     return;
   }
-  renderMealplan();
+  // Reload full row with join for INSERT/UPDATE
+  supabase.from('meal_plan').select('*, recipe:recipe_id(*)').eq('id', n.id).single().then(({ data }) => {
+    if (!data) return;
+    if (eventType === 'INSERT') mealplan = [...mealplan, data];
+    else mealplan = mealplan.map(m => m.id === data.id ? data : m);
+    renderMealplan();
+  });
 }
 
 export function onRealtimeRecipes() {
@@ -55,7 +55,7 @@ export function renderMealplan() {
   const pane = document.getElementById('tab-mealplan');
   const days = getWeekDays();
   const weekStart = days[0].toLocaleDateString('de-DE', { day: 'numeric', month: 'short' });
-  const weekEnd = days[6].toLocaleDateString('de-DE', { day: 'numeric', month: 'short' });
+  const weekEnd   = days[6].toLocaleDateString('de-DE', { day: 'numeric', month: 'short' });
 
   pane.innerHTML = `
     <div class="week-nav">
@@ -72,7 +72,7 @@ export function renderMealplan() {
   const daysEl = pane.querySelector('#mealplan-days');
   days.forEach(day => {
     const iso = day.toISOString().split('T')[0];
-    const entry = mealplan.find(m => m.date === iso);
+    const entry = mealplan.find(m => m.plan_date === iso);
     const recipe = entry?.recipe;
 
     const card = document.createElement('div');
@@ -83,12 +83,12 @@ export function renderMealplan() {
         <span class="meal-day-date">${day.toLocaleDateString('de-DE', { day: 'numeric', month: 'short' })}</span>
       </div>
       ${recipe
-        ? `<div style="display:flex;align-items:center;gap:12px;cursor:pointer" class="meal-recipe-row" data-date="${iso}">
+        ? `<div style="display:flex;align-items:center;gap:12px;cursor:pointer" class="meal-recipe-row">
              <span style="font-size:28px">${escHtml(recipe.emoji ?? '🍽️')}</span>
              <span style="font-weight:700;flex:1">${escHtml(recipe.title)}</span>
-             <button class="btn btn-sm btn-secondary btn-change-meal" data-date="${iso}">Ändern</button>
+             <button class="btn btn-sm btn-secondary btn-change-meal">Ändern</button>
            </div>`
-        : `<button class="btn btn-secondary btn-block btn-assign-meal" data-date="${iso}">+ Rezept zuweisen</button>`
+        : `<button class="btn btn-secondary btn-block btn-assign-meal">+ Rezept zuweisen</button>`
       }
     `;
 
@@ -111,7 +111,7 @@ function openAssignModal(date, existingId) {
     `<option value="${r.id}">${escHtml(r.emoji ?? '')} ${escHtml(r.title)}</option>`
   ).join('');
 
-  const body = `
+  openModal('Rezept zuweisen', `
     <div class="form-group">
       <label>Rezept für ${new Date(date + 'T00:00:00').toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })}</label>
       <select id="meal-recipe-select">
@@ -123,53 +123,58 @@ function openAssignModal(date, existingId) {
       <button class="btn btn-primary btn-block" id="btn-save-meal">Speichern</button>
       ${existingId ? `<button class="btn btn-danger btn-block" id="btn-remove-meal">Entfernen</button>` : ''}
     </div>
-  `;
-
-  openModal('Rezept zuweisen', body);
+  `);
 
   document.getElementById('btn-save-meal').addEventListener('click', async () => {
     const recipeId = document.getElementById('meal-recipe-select').value;
     if (!recipeId) return;
+    const profile = getCurrentProfile();
     if (existingId) {
-      await supabase.from('mealplan').update({ recipe_id: recipeId }).eq('id', existingId);
+      await supabase.from('meal_plan').update({ recipe_id: recipeId }).eq('id', existingId);
     } else {
-      await supabase.from('mealplan').insert({ date, recipe_id: recipeId });
+      await supabase.from('meal_plan').insert({
+        plan_date:  date,
+        recipe_id:  recipeId,
+        created_by: profile?.id ?? null,
+      });
     }
     document.getElementById('modal-generic').classList.add('hidden');
     showToast('Kochplan aktualisiert');
   });
 
   document.getElementById('btn-remove-meal')?.addEventListener('click', async () => {
-    await supabase.from('mealplan').delete().eq('id', existingId);
+    await supabase.from('meal_plan').delete().eq('id', existingId);
     document.getElementById('modal-generic').classList.add('hidden');
     showToast('Rezept entfernt');
   });
 }
 
 function openRecipeDetail(recipe) {
+  const steps = parseSteps(recipe.notes);
   const ingredients = (recipe.ingredients ?? []).map(ing =>
     `<li>${ing.amount ? escHtml(String(ing.amount)) + ' ' : ''}${escHtml(ing.unit ?? '')} ${escHtml(ing.name)}</li>`
   ).join('');
-
-  const steps = (recipe.steps ?? []).map((s, i) =>
+  const stepsHtml = steps.map((s, i) =>
     `<li style="margin-bottom:8px"><strong>${i + 1}.</strong> ${escHtml(s)}</li>`
   ).join('');
 
-  const body = `
+  openModal(recipe.title, `
     <div style="text-align:center;font-size:48px;margin-bottom:16px">${escHtml(recipe.emoji ?? '🍽️')}</div>
     <div class="chip chip-category" style="margin-bottom:12px">${escHtml(recipe.category ?? '')}</div>
     ${recipe.description ? `<p style="margin-bottom:16px;color:var(--text-secondary)">${escHtml(recipe.description)}</p>` : ''}
     <div style="display:flex;gap:16px;margin-bottom:16px;font-size:13px;color:var(--text-secondary)">
-      ${recipe.portions ? `<span>🍴 ${recipe.portions} Portionen</span>` : ''}
+      ${recipe.servings  ? `<span>🍴 ${recipe.servings} Portionen</span>` : ''}
       ${recipe.prep_time ? `<span>⏱️ ${recipe.prep_time} Min Vorbereitung</span>` : ''}
       ${recipe.cook_time ? `<span>🔥 ${recipe.cook_time} Min Kochen</span>` : ''}
     </div>
     ${ingredients ? `<h3 style="margin-bottom:8px">Zutaten</h3><ul style="padding-left:20px;margin-bottom:16px">${ingredients}</ul>` : ''}
-    ${steps ? `<h3 style="margin-bottom:8px">Zubereitung</h3><ol style="padding-left:20px">${steps}</ol>` : ''}
+    ${stepsHtml ? `<h3 style="margin-bottom:8px">Zubereitung</h3><ol style="padding-left:20px">${stepsHtml}</ol>` : ''}
     ${recipe.source_url ? `<a href="${escHtml(recipe.source_url)}" target="_blank" rel="noopener" style="margin-top:16px;display:block">🔗 Quelle</a>` : ''}
-  `;
+  `);
+}
 
-  openModal(recipe.title, body);
+export function parseSteps(notes) {
+  try { return JSON.parse(notes)?.steps ?? []; } catch { return []; }
 }
 
 function escHtml(str) {

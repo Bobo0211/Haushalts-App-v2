@@ -45,10 +45,10 @@ function showTab(tab) {
 // ─── Realtime Callbacks ───────────────────────────────────────────────────────
 function setupRealtime() {
   subscribeAll({
-    tasks:        payload => { onRealtimeTasks(payload); },
-    mealplan:     payload => { onRealtimeMealplan(payload); },
-    shopping:     payload => { onRealtimeShopping(payload); },
-    recipes:      payload => { onRealtimeRecipes(payload); onMealRecipes(payload); },
+    tasks:         payload => { onRealtimeTasks(payload); },
+    meal_plan:     payload => { onRealtimeMealplan(payload); },
+    shopping_items:payload => { onRealtimeShopping(payload); },
+    recipes:       payload => { onRealtimeRecipes(payload); onMealRecipes(payload); },
     point_events: payload => { onRealtimePointEvents(payload); },
     profiles:     payload => {
       // Refresh profiles array then re-render balance
@@ -63,9 +63,12 @@ async function boot() {
   const theme = localStorage.getItem('theme') ?? 'light';
   document.documentElement.dataset.theme = theme === 'dark' ? 'dark' : '';
 
-  // Register service worker
+  // Register service worker and listen for update messages
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
+    navigator.serviceWorker.addEventListener('message', event => {
+      if (event.data?.type === 'SW_UPDATED') showUpdateBanner();
+    });
   }
 
   // Load profiles
@@ -149,6 +152,21 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
     if (e.target === overlay) overlay.classList.add('hidden');
   });
 });
+
+// ─── Update Banner ────────────────────────────────────────────────────────────
+function showUpdateBanner() {
+  if (document.getElementById('update-banner')) return;
+  const banner = document.createElement('div');
+  banner.id = 'update-banner';
+  banner.innerHTML = `
+    <span>🔄 Neues Update verfügbar</span>
+    <button id="update-btn">Jetzt aktualisieren</button>
+  `;
+  document.body.appendChild(banner);
+  document.getElementById('update-btn').addEventListener('click', () => {
+    window.location.reload();
+  });
+}
 
 // ─── Start ────────────────────────────────────────────────────────────────────
 boot();

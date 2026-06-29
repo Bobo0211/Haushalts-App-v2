@@ -594,6 +594,37 @@
   }
 }
 
+/* ─── Update Banner ─── */
+#update-banner {
+  position: fixed;
+  bottom: calc(var(--nav-height) + var(--safe-bottom) + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--color-primary);
+  color: white;
+  padding: 12px 20px;
+  border-radius: var(--border-radius);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 9999;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  white-space: nowrap;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+#update-banner button {
+  background: white;
+  color: var(--color-primary);
+  border: none;
+  padding: 6px 14px;
+  border-radius: var(--border-radius-sm);
+  font-weight: 700;
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+}
+
 /* ─── Loading Spinner ─── */
 .spinner {
   display: inline-block;
