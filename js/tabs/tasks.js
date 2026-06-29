@@ -198,7 +198,7 @@ async function toggleTask(task) {
   if (newDone && task.points) {
     // Credit points
     await supabase.from('profiles')
-      .update({ points: (profile.points ?? 0) + task.points })
+      .update({ total_points: (profile.total_points ?? 0) + task.points })
       .eq('id', profile.id);
 
     await supabase.from('point_events').insert({

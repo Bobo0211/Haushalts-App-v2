@@ -38,8 +38,8 @@ export function renderBalance() {
   const pane = document.getElementById('tab-balance');
   const profiles = freshProfiles.length ? freshProfiles : getProfiles();
 
-  const sorted = [...profiles].sort((a, b) => (b.points ?? 0) - (a.points ?? 0));
-  const maxPts = sorted[0]?.points ?? 0;
+  const sorted = [...profiles].sort((a, b) => (b.total_points ?? 0) - (a.total_points ?? 0));
+  const maxPts = sorted[0]?.total_points ?? 0;
 
   pane.innerHTML = `
     <div class="section-header">
@@ -57,12 +57,12 @@ export function renderBalance() {
   const grid = pane.querySelector('#points-grid');
   sorted.forEach(profile => {
     const card = document.createElement('div');
-    card.className = 'points-card' + (profile.points >= maxPts && maxPts > 0 ? ' winner' : '');
+    card.className = 'points-card' + (profile.total_points >= maxPts && maxPts > 0 ? ' winner' : '');
     card.innerHTML = `
       ${buildAvatarHTML(profile, 'avatar-md')}
-      <div class="points-value">${profile.points ?? 0}</div>
+      <div class="points-value">${profile.total_points ?? 0}</div>
       <div class="points-label">${escHtml(profile.name)}</div>
-      ${profile.points >= maxPts && maxPts > 0 ? '<div style="font-size:18px;margin-top:4px">👑</div>' : ''}
+      ${profile.total_points >= maxPts && maxPts > 0 ? '<div style="font-size:18px;margin-top:4px">👑</div>' : ''}
     `;
     grid.appendChild(card);
   });
@@ -71,9 +71,9 @@ export function renderBalance() {
   const eventsEl = pane.querySelector('#events-list');
   if (events.length === 0) {
     // Show current points as starting entries
-    if (profiles.some(p => (p.points ?? 0) > 0)) {
+    if (profiles.some(p => (p.total_points ?? 0) > 0)) {
       profiles.forEach(p => {
-        if (!p.points) return;
+        if (!p.total_points) return;
         const item = document.createElement('div');
         item.className = 'event-item';
         item.innerHTML = `
@@ -82,7 +82,7 @@ export function renderBalance() {
             <div class="event-title">Startguthaben</div>
             <div class="event-time">${escHtml(p.name)}</div>
           </div>
-          <div class="event-points">+${p.points}</div>
+          <div class="event-points">+${p.total_points}</div>
         `;
         eventsEl.appendChild(item);
       });
@@ -118,7 +118,7 @@ async function resetPoints() {
 
   const profiles = getProfiles();
   const resetPromises = profiles.map(p =>
-    supabase.from('profiles').update({ points: 0 }).eq('id', p.id)
+    supabase.from('profiles').update({ total_points: 0 }).eq('id', p.id)
   );
   await Promise.all(resetPromises);
   await supabase.from('point_events').delete().neq('id', '00000000-0000-0000-0000-000000000000');
