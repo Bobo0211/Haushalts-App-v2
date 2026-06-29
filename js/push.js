@@ -1,4 +1,4 @@
-import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from './supabase-client.js';
+import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from './supabase-client.js'; // Key kommt aus supabase-client.js
 import { getCurrentProfile } from './auth.js';
 
 const VAPID_PUBLIC_KEY = 'BPYaHd7-TwIDYKF0P6mFZSFtQgALbVj3_eujrRIJFKVo0aZEFyQJnHJ_d68Yb-_8HaFd7bBCVFGZEm1C-Tskbhc';
