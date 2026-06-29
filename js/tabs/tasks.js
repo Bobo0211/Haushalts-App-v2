@@ -2,13 +2,13 @@ import { getCurrentProfile, getProfiles, getOtherProfile, buildAvatarHTML } from
 import { showToast, openModal } from '../app.js';
 
 const CATEGORIES = [
-  { key: 'kitchen',    label: 'Küche',       emoji: '🍳' },
-  { key: 'bathroom',   label: 'Bad',          emoji: '🚿' },
-  { key: 'living',     label: 'Wohnzimmer',   emoji: '🛋️' },
-  { key: 'bedroom',    label: 'Schlafzimmer', emoji: '🛏️' },
-  { key: 'shopping',   label: 'Einkauf',      emoji: '🛒' },
-  { key: 'laundry',    label: 'Wäsche',       emoji: '👕' },
-  { key: 'misc',       label: 'Sonstiges',    emoji: '📦' },
+  { value: 'Küche',       emoji: '🍳' },
+  { value: 'Bad',         emoji: '🚿' },
+  { value: 'Wohnzimmer',  emoji: '🛋️' },
+  { value: 'Schlafzimmer',emoji: '🛏️' },
+  { value: 'Einkauf',     emoji: '🛒' },
+  { value: 'Wäsche',      emoji: '👕' },
+  { value: 'Sonstiges',   emoji: '📦' },
 ];
 
 const RECURRENCE_LABELS = {
@@ -46,8 +46,8 @@ export function onRealtimeTasks(payload) {
   renderTasks();
 }
 
-function getCategoryInfo(key) {
-  return CATEGORIES.find(c => c.key === key) ?? { label: key, emoji: '📦' };
+function getCategoryInfo(value) {
+  return CATEGORIES.find(c => c.value === value) ?? { value: value, emoji: '📦' };
 }
 
 export function renderTasks() {
@@ -56,7 +56,7 @@ export function renderTasks() {
   const profiles = getProfiles();
 
   let filtered = tasks;
-  if (filterCategory !== 'all') filtered = filtered.filter(t => t.category === filterCategory);
+  if (filterCategory !== 'all') filtered = filtered.filter(t => t.category === filterCategory); // filterCategory holds the German value
   if (filterMine) filtered = filtered.filter(t => t.assigned_to === profile?.id);
   if (!showDone) filtered = filtered.filter(t => !t.is_done);
 
@@ -116,9 +116,9 @@ export function renderTasks() {
 
   CATEGORIES.forEach(cat => {
     const chip = document.createElement('button');
-    chip.className = 'filter-chip' + (filterCategory === cat.key ? ' active' : '');
-    chip.textContent = `${cat.emoji} ${cat.label}`;
-    chip.addEventListener('click', () => { filterCategory = cat.key; renderTasks(); });
+    chip.className = 'filter-chip' + (filterCategory === cat.value ? ' active' : '');
+    chip.textContent = `${cat.emoji} ${cat.value}`;
+    chip.addEventListener('click', () => { filterCategory = cat.value; renderTasks(); });
     filterBar.appendChild(chip);
   });
 
@@ -151,7 +151,7 @@ export function renderTasks() {
         <div class="task-body">
           <div class="task-title">${escHtml(task.title)}</div>
           <div class="task-meta">
-            <span class="chip chip-category">${cat.emoji} ${cat.label}</span>
+            <span class="chip chip-category">${cat.emoji} ${cat.value}</span>
             ${task.points ? `<span class="chip chip-points">⭐ ${task.points}</span>` : ''}
             ${RECURRENCE_LABELS[task.recurrence] && task.recurrence !== 'once' ? `<span class="chip">${RECURRENCE_LABELS[task.recurrence]}</span>` : ''}
             ${overdue ? `<span class="chip chip-overdue">⚠️ Überfällig</span>` : ''}
@@ -236,7 +236,7 @@ function openTaskForm(task = null) {
   ).join('');
 
   const catOptions = CATEGORIES.map(c =>
-    `<option value="${c.key}" ${task?.category === c.key ? 'selected' : ''}>${c.emoji} ${c.label}</option>`
+    `<option value="${c.value}" ${task?.category === c.value ? 'selected' : ''}>${c.emoji} ${c.value}</option>`
   ).join('');
 
   const recOptions = Object.entries(RECURRENCE_LABELS).map(([k, v]) =>

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "haushaltsplan",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-c", "import http.server, os; os.chdir('/Users/cedriconguene/Documents/privates/Haushalts-App_v2'); http.server.test(HandlerClass=http.server.SimpleHTTPRequestHandler, port=8788, bind='127.0.0.1')"],
+      "port": 8788
+    }
+  ]
+}
