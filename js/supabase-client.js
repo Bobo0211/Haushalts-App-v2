@@ -5,10 +5,12 @@ if (!window.supabase) {
   throw new Error('Supabase CDN nicht geladen – prüfe die Script-Reihenfolge in index.html');
 }
 
+console.log('Supabase init:', SUPABASE_URL, SUPABASE_ANON_KEY ? 'Key OK' : 'KEY FEHLT');
+
+// createClient handles apikey header automatically from the second argument.
+// Do NOT pass global.headers – it overrides instead of merges and strips the apikey.
 export const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: false },
-  global: {
-    headers: { apikey: SUPABASE_ANON_KEY },
-  },
 });
+
 export { SUPABASE_URL, SUPABASE_ANON_KEY };
