@@ -3,10 +3,16 @@ import { getProfiles, buildAvatarHTML } from '../auth.js';
 import { showToast } from '../app.js';
 
 let events = [];
+let freshProfiles = [];
 
 export async function initBalance() {
-  await loadEvents();
+  await Promise.all([loadEvents(), loadFreshProfiles()]);
   renderBalance();
+}
+
+async function loadFreshProfiles() {
+  const { data } = await supabase.from('profiles').select('*').order('name');
+  if (data) freshProfiles = data;
 }
 
 async function loadEvents() {
@@ -25,12 +31,12 @@ export function onRealtimePointEvents(payload) {
 }
 
 export function onRealtimeProfiles() {
-  renderBalance();
+  loadFreshProfiles().then(() => renderBalance());
 }
 
 export function renderBalance() {
   const pane = document.getElementById('tab-balance');
-  const profiles = getProfiles();
+  const profiles = freshProfiles.length ? freshProfiles : getProfiles();
 
   const sorted = [...profiles].sort((a, b) => (b.points ?? 0) - (a.points ?? 0));
   const maxPts = sorted[0]?.points ?? 0;

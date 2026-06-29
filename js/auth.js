@@ -78,11 +78,11 @@ export function buildAvatarHTML(profile, sizeClass = 'avatar-md', id = '') {
 
   if (profile.avatar_url) {
     return `
-      <div ${idAttr} class="avatar ${sizeClass}" style="background:${bg}">
+      <div ${idAttr} class="avatar ${sizeClass}" style="background:${bg};color:white">
         <img src="${escHtml(profile.avatar_url)}"
              alt="${escHtml(profile.name)}"
-             onerror="this.style.display='none'">
-        <span style="position:relative;z-index:1">${escHtml(initials)}</span>
+             onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <span style="display:none;position:absolute;inset:0;align-items:center;justify-content:center">${escHtml(initials)}</span>
       </div>`;
   }
 
