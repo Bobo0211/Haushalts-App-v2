@@ -1,4 +1,3 @@
-import { supabase } from '../supabase-client.js';
 import { getCurrentProfile } from '../auth.js';
 import { showToast, openModal } from '../app.js';
 
@@ -14,7 +13,7 @@ let recipes = [];
 let searchQuery = '';
 
 export async function initRecipes() {
-  const { data, error } = await supabase
+  const { data, error } = await window.db
     .from('recipes')
     .select('*')
     .order('title');
@@ -298,9 +297,9 @@ function bindRecipeForm(existingRecipe) {
 
     let error;
     if (existingRecipe) {
-      ({ error } = await supabase.from('recipes').update(payload).eq('id', existingRecipe.id));
+      ({ error } = await window.db.from('recipes').update(payload).eq('id', existingRecipe.id));
     } else {
-      ({ error } = await supabase.from('recipes').insert({ ...payload, created_by: profile?.id ?? null }));
+      ({ error } = await window.db.from('recipes').insert({ ...payload, created_by: profile?.id ?? null }));
     }
 
     if (error) {
@@ -328,7 +327,7 @@ function bindRemoveButtons(container, itemSelector) {
 
 async function deleteRecipe(id) {
   if (!confirm('Rezept löschen?')) return;
-  await supabase.from('recipes').delete().eq('id', id);
+  await window.db.from('recipes').delete().eq('id', id);
 }
 
 // ─── PDF Import ───────────────────────────────────────────────────────────────

@@ -1,4 +1,3 @@
-import { supabase } from '../supabase-client.js';
 import { getCurrentProfile } from '../auth.js';
 import { showToast } from '../app.js';
 
@@ -17,7 +16,7 @@ let items = [];
 let filterCategory = 'all';
 
 export async function initShopping() {
-  const { data, error } = await supabase
+  const { data, error } = await window.db
     .from('shopping_items')
     .select('*')
     .order('shop_category')
@@ -84,7 +83,7 @@ export function renderShopping() {
     const shop_category = document.getElementById('shopping-cat').value;
     if (!name) return;
     const profile = getCurrentProfile();
-    const { error } = await supabase.from('shopping_items').insert({
+    const { error } = await window.db.from('shopping_items').insert({
       name,
       shop_category,
       is_checked: false,
@@ -98,7 +97,7 @@ export function renderShopping() {
   pane.querySelector('#btn-clear-done').addEventListener('click', async () => {
     const doneIds = items.filter(i => i.is_checked).map(i => i.id);
     if (!doneIds.length) { showToast('Keine erledigten Artikel'); return; }
-    await supabase.from('shopping_items').delete().in('id', doneIds);
+    await window.db.from('shopping_items').delete().in('id', doneIds);
     showToast('Erledigte Artikel gelöscht');
   });
 
@@ -151,11 +150,11 @@ export function renderShopping() {
 }
 
 async function toggleItem(item) {
-  await supabase.from('shopping_items').update({ is_checked: !item.is_checked }).eq('id', item.id);
+  await window.db.from('shopping_items').update({ is_checked: !item.is_checked }).eq('id', item.id);
 }
 
 async function deleteItem(id) {
-  await supabase.from('shopping_items').delete().eq('id', id);
+  await window.db.from('shopping_items').delete().eq('id', id);
 }
 
 function escHtml(str) {

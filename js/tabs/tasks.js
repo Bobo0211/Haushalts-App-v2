@@ -1,4 +1,3 @@
-import { supabase } from '../supabase-client.js';
 import { getCurrentProfile, getProfiles, getOtherProfile, buildAvatarHTML } from '../auth.js';
 import { showToast, openModal } from '../app.js';
 import { notifyTaskDone } from '../push.js';
@@ -33,7 +32,7 @@ export async function initTasks() {
 }
 
 async function loadTasks() {
-  const { data, error } = await supabase
+  const { data, error } = await window.db
     .from('tasks')
     .select('*')
     .order('scheduled_date', { ascending: true, nullsFirst: false });
@@ -184,11 +183,11 @@ async function toggleTask(task) {
   const updates = { is_done: newDone };
 
   if (newDone && task.points) {
-    await supabase.from('profiles')
+    await window.db.from('profiles')
       .update({ total_points: (profile.total_points ?? 0) + task.points })
       .eq('id', profile.id);
 
-    await supabase.from('point_events').insert({
+    await window.db.from('point_events').insert({
       profile_id: profile.id,
       task_id:    task.id,
       task_title: task.title,
@@ -208,7 +207,7 @@ async function toggleTask(task) {
     }
   }
 
-  const { error } = await supabase.from('tasks').update(updates).eq('id', task.id);
+  const { error } = await window.db.from('tasks').update(updates).eq('id', task.id);
   if (error) { showToast('Fehler beim Aktualisieren'); return; }
   if (newDone && task.points) showToast(`⭐ +${task.points} Punkte!`);
 }
@@ -226,7 +225,7 @@ function calcNextDueDate(currentDue, recurrence) {
 
 async function deleteTask(id) {
   if (!confirm('Aufgabe löschen?')) return;
-  await supabase.from('tasks').delete().eq('id', id);
+  await window.db.from('tasks').delete().eq('id', id);
 }
 
 function openTaskForm(task = null) {
@@ -309,9 +308,9 @@ function openTaskForm(task = null) {
 
     let error;
     if (isEdit) {
-      ({ error } = await supabase.from('tasks').update(payload).eq('id', task.id));
+      ({ error } = await window.db.from('tasks').update(payload).eq('id', task.id));
     } else {
-      ({ error } = await supabase.from('tasks').insert({ ...payload, is_done: false }));
+      ({ error } = await window.db.from('tasks').insert({ ...payload, is_done: false }));
     }
 
     if (error) {

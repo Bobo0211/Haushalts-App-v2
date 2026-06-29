@@ -1,4 +1,3 @@
-import { supabase } from '../supabase-client.js';
 import { getCurrentProfile } from '../auth.js';
 import { showToast, openModal } from '../app.js';
 
@@ -8,8 +7,8 @@ let weekOffset = 0;
 
 export async function initMealplan() {
   const [mpRes, recRes] = await Promise.all([
-    supabase.from('meal_plan').select('*, recipe:recipe_id(*)'),
-    supabase.from('recipes').select('id, title, emoji').order('title'),
+    window.db.from('meal_plan').select('*, recipe:recipe_id(*)'),
+    window.db.from('recipes').select('id, title, emoji').order('title'),
   ]);
   mealplan = mpRes.data ?? [];
   recipes = recRes.data ?? [];
@@ -24,7 +23,7 @@ export function onRealtimeMealplan(payload) {
     return;
   }
   // Reload full row with join for INSERT/UPDATE
-  supabase.from('meal_plan').select('*, recipe:recipe_id(*)').eq('id', n.id).single().then(({ data }) => {
+  window.db.from('meal_plan').select('*, recipe:recipe_id(*)').eq('id', n.id).single().then(({ data }) => {
     if (!data) return;
     if (eventType === 'INSERT') mealplan = [...mealplan, data];
     else mealplan = mealplan.map(m => m.id === data.id ? data : m);
@@ -33,7 +32,7 @@ export function onRealtimeMealplan(payload) {
 }
 
 export function onRealtimeRecipes() {
-  supabase.from('recipes').select('id, title, emoji').order('title').then(({ data }) => {
+  window.db.from('recipes').select('id, title, emoji').order('title').then(({ data }) => {
     recipes = data ?? [];
     renderMealplan();
   });
@@ -130,9 +129,9 @@ function openAssignModal(date, existingId) {
     if (!recipeId) return;
     const profile = getCurrentProfile();
     if (existingId) {
-      await supabase.from('meal_plan').update({ recipe_id: recipeId }).eq('id', existingId);
+      await window.db.from('meal_plan').update({ recipe_id: recipeId }).eq('id', existingId);
     } else {
-      await supabase.from('meal_plan').insert({
+      await window.db.from('meal_plan').insert({
         plan_date:  date,
         recipe_id:  recipeId,
         created_by: profile?.id ?? null,
@@ -143,7 +142,7 @@ function openAssignModal(date, existingId) {
   });
 
   document.getElementById('btn-remove-meal')?.addEventListener('click', async () => {
-    await supabase.from('meal_plan').delete().eq('id', existingId);
+    await window.db.from('meal_plan').delete().eq('id', existingId);
     document.getElementById('modal-generic').classList.add('hidden');
     showToast('Rezept entfernt');
   });

@@ -1,4 +1,3 @@
-import { supabase } from './supabase-client.js';
 import { showToast } from './app.js';
 
 let profiles = [];
@@ -17,7 +16,7 @@ export function getOtherProfile() {
 }
 
 export async function loadProfiles() {
-  const { data, error } = await supabase
+  const { data, error } = await window.db
     .from('profiles')
     .select('*')
     .order('name');
@@ -28,7 +27,7 @@ export async function loadProfiles() {
 
 export async function refreshCurrentProfile() {
   if (!currentProfile) return;
-  const { data } = await supabase
+  const { data } = await window.db
     .from('profiles')
     .select('*')
     .eq('id', currentProfile.id)
@@ -93,7 +92,7 @@ export function buildAvatarHTML(profile, sizeClass = 'avatar-md', id = '') {
 }
 
 export async function updateProfile(updates) {
-  const { data, error } = await supabase
+  const { data, error } = await window.db
     .from('profiles')
     .update(updates)
     .eq('id', currentProfile.id)
@@ -109,12 +108,12 @@ export async function updateProfile(updates) {
 export async function uploadAvatar(file) {
   const ext = file.name.split('.').pop();
   const path = `${currentProfile.id}/${Date.now()}.${ext}`;
-  const { error: upErr } = await supabase.storage
+  const { error: upErr } = await window.db.storage
     .from('avatars')
     .upload(path, file, { upsert: true });
   if (upErr) throw upErr;
 
-  const { data } = supabase.storage.from('avatars').getPublicUrl(path);
+  const { data } = window.db.storage.from('avatars').getPublicUrl(path);
   return data.publicUrl;
 }
 

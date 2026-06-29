@@ -1,4 +1,4 @@
-import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from './supabase-client.js'; // Key kommt aus supabase-client.js
+import { window.db, SUPABASE_URL, SUPABASE_ANON_KEY } from './supabase-client.js'; // Key kommt aus supabase-client.js
 import { getCurrentProfile } from './auth.js';
 
 const VAPID_PUBLIC_KEY = 'BKFwMUvHiFygL3zoYOV3agbroVmooHXGlujdOMoWEw8ng-7ZeunBTwiqfh6S7_bLsUPLgCcStW6p6PXL2E9HRbA';
@@ -25,7 +25,7 @@ export async function subscribePush() {
   });
 
   const profile = getCurrentProfile();
-  const { error } = await supabase
+  const { error } = await window.db
     .from('push_subscriptions')
     .upsert({
       profile_id: profile.id,
@@ -42,7 +42,7 @@ export async function unsubscribePush() {
   if (sub) await sub.unsubscribe();
 
   const profile = getCurrentProfile();
-  await supabase
+  await window.db
     .from('push_subscriptions')
     .delete()
     .eq('profile_id', profile.id);

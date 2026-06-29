@@ -9,8 +9,14 @@ console.log('Supabase init:', SUPABASE_URL, SUPABASE_ANON_KEY ? 'Key OK' : 'KEY 
 
 // createClient handles apikey header automatically from the second argument.
 // Do NOT pass global.headers – it overrides instead of merges and strips the apikey.
-export const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+const _client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: false },
 });
 
+// Expose as window.db so every module uses the exact same instance
+window.db = _client;
+window.SUPABASE_URL = SUPABASE_URL;
+window.SUPABASE_ANON_KEY = SUPABASE_ANON_KEY;
+
+export const supabase = _client;
 export { SUPABASE_URL, SUPABASE_ANON_KEY };

@@ -1,4 +1,3 @@
-import { supabase } from './supabase-client.js';
 import { getCurrentProfile, getProfiles, updateProfile, uploadAvatar, buildAvatarHTML, selectProfile } from './auth.js';
 import { subscribePush, unsubscribePush, isPushSubscribed, sendTestPush } from './push.js';
 import { showToast } from './app.js';

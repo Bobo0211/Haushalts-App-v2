@@ -1,4 +1,3 @@
-import { supabase } from '../supabase-client.js';
 import { getProfiles, buildAvatarHTML } from '../auth.js';
 import { showToast } from '../app.js';
 
@@ -11,12 +10,12 @@ export async function initBalance() {
 }
 
 async function loadFreshProfiles() {
-  const { data } = await supabase.from('profiles').select('*').order('name');
+  const { data } = await window.db.from('profiles').select('*').order('name');
   if (data) freshProfiles = data;
 }
 
 async function loadEvents() {
-  const { data, error } = await supabase
+  const { data, error } = await window.db
     .from('point_events')
     .select('*')
     .order('created_at', { ascending: false });
@@ -118,10 +117,10 @@ async function resetPoints() {
 
   const profiles = getProfiles();
   const resetPromises = profiles.map(p =>
-    supabase.from('profiles').update({ total_points: 0 }).eq('id', p.id)
+    window.db.from('profiles').update({ total_points: 0 }).eq('id', p.id)
   );
   await Promise.all(resetPromises);
-  await supabase.from('point_events').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  await window.db.from('point_events').delete().neq('id', '00000000-0000-0000-0000-000000000000');
   events = [];
   showToast('Punkte zurückgesetzt');
   renderBalance();
