@@ -186,12 +186,12 @@ async function toggleTask(task) {
       .update({ total_points: (profile.total_points ?? 0) + task.points })
       .eq('id', profile.id);
 
-    await window.db.from('point_events').insert({
+    const { error: pointError } = await window.db.from('point_events').insert({
       profile_id: profile.id,
-      task_id:    task.id,
       task_title: task.title,
       points:     task.points,
     });
+    if (pointError) console.error('point_events INSERT fehlgeschlagen:', pointError);
 
     const assignee = profiles.find(p => p.id === task.assigned_to);
     if (assignee && assignee.id !== profile.id) window.notifyTaskDone(task, assignee);
