@@ -3,8 +3,24 @@ import { showToast } from '../app.js';
 
 let events = [];
 let freshProfiles = [];
+let realtimeChannel = null;
 
 export async function initBalance() {
+  await Promise.all([loadEvents(), loadFreshProfiles()]);
+  renderBalance();
+  subscribeBalanceRealtime();
+}
+
+function subscribeBalanceRealtime() {
+  if (realtimeChannel) window.db.removeChannel(realtimeChannel);
+  realtimeChannel = window.db
+    .channel('balance-updates')
+    .on('postgres_changes', { event: '*',      schema: 'public', table: 'point_events' }, loadBalance)
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles' },    loadBalance)
+    .subscribe();
+}
+
+async function loadBalance() {
   await Promise.all([loadEvents(), loadFreshProfiles()]);
   renderBalance();
 }

@@ -383,27 +383,22 @@ async function processPdf(file) {
   }
 }
 
-async function analyzeRecipeWithAI(text) {
-  const resp = await fetch('https://dqehjjnsdzpmsihljieq.supabase.co/functions/v1/analyze-recipe', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRxZWhqam5zZHpwbXNpaGxqaWVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NDcxMDMsImV4cCI6MjA5NjIyMzEwM30.7zopkzUucxfuEoefisRJF1nm-43sjDVagzwP-7ox520`,
-    },
-    body: JSON.stringify({ text }),
+async function analyzeRecipeWithAI(extractedText) {
+  const { data, error } = await window.db.functions.invoke('analyze-recipe', {
+    body: { text: extractedText },
   });
-  if (!resp.ok) throw new Error(`KI-Analyse fehlgeschlagen: ${await resp.text()}`);
-  const data = await resp.json();
-  // Edge Function returns portions/steps → map to servings/notes
-  if (data.recipe?.portions !== undefined && data.recipe.servings === undefined) {
-    data.recipe.servings = data.recipe.portions;
-    delete data.recipe.portions;
+
+  if (error) {
+    console.error('Edge Function Fehler:', error);
+    throw new Error('KI-Analyse fehlgeschlagen: ' + error.message);
   }
-  if (Array.isArray(data.recipe?.steps)) {
-    data.recipe.notes = stepsToNotes(data.recipe.steps);
-    delete data.recipe.steps;
+
+  // Map steps → notes (stored as JSON in notes column)
+  if (Array.isArray(data.steps)) {
+    data.notes = stepsToNotes(data.steps);
+    delete data.steps;
   }
-  return data.recipe ?? data;
+  return data;
 }
 
 function escHtml(str) {
