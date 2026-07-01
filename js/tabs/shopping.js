@@ -1,5 +1,5 @@
 import { getCurrentProfile } from '../auth.js';
-import { showToast } from '../app.js';
+import { showToast, openModal } from '../app.js';
 
 const CATEGORIES = [
   { value: 'Obst & Gemüse',       emoji: '🥦' },
@@ -25,7 +25,8 @@ export async function loadShoppingItems() {
   const { data, error } = await window.db
     .from('shopping_items')
     .select('*, recipes(title)')
-    .order('created_at', { ascending: false });
+    .order('shop_category', { ascending: true })
+    .order('name', { ascending: true });
   if (!error) items = data ?? [];
   renderShopping();
 }
@@ -160,14 +161,73 @@ export function renderShopping() {
           ${item.recipes?.title ? `<span class="item-recipe">${escHtml(item.recipes.title)}</span>` : ''}
         </div>
         ${item.amount || item.unit ? `<span style="font-size:13px;color:var(--text-secondary)">${escHtml(String(item.amount ?? ''))} ${escHtml(item.unit ?? '')}</span>` : ''}
+        <button class="btn btn-icon btn-secondary btn-edit-item" title="Bearbeiten">✏️</button>
         <button class="btn btn-icon btn-secondary btn-del-item" title="Löschen">🗑️</button>
       `;
       el.querySelector('.task-check').addEventListener('click', () => toggleItem(item));
+      el.querySelector('.btn-edit-item').addEventListener('click', () => openEditModal(item));
       el.querySelector('.btn-del-item').addEventListener('click', () => deleteItem(item.id));
       section.appendChild(el);
     });
 
     listEl.appendChild(section);
+  });
+}
+
+function openEditModal(item) {
+  const catOptions = CATEGORIES.map(c =>
+    `<option value="${c.value}" ${item.shop_category === c.value ? 'selected' : ''}>${c.emoji} ${c.value}</option>`
+  ).join('');
+
+  openModal('Artikel bearbeiten', `
+    <form id="edit-item-form">
+      <div class="form-group">
+        <label>Name</label>
+        <input type="text" name="name" value="${escHtml(item.name ?? '')}" required />
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Menge</label>
+          <input type="number" name="amount" value="${escHtml(String(item.amount ?? ''))}" min="0" step="any" />
+        </div>
+        <div class="form-group">
+          <label>Einheit</label>
+          <input type="text" name="unit" value="${escHtml(item.unit ?? '')}" placeholder="g, ml, Stk…" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Kategorie</label>
+        <select name="shop_category">${catOptions}</select>
+      </div>
+      <button type="submit" class="btn btn-primary btn-block" style="margin-top:8px">Speichern</button>
+    </form>
+  `);
+
+  document.getElementById('edit-item-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const name          = fd.get('name').trim();
+    const amount        = fd.get('amount') ? parseFloat(fd.get('amount')) : null;
+    const unit          = fd.get('unit').trim() || null;
+    const shop_category = fd.get('shop_category');
+    if (!name) return;
+
+    const btn = e.target.querySelector('[type=submit]');
+    btn.disabled = true;
+    btn.textContent = '…';
+
+    const { error } = await window.db.from('shopping_items')
+      .update({ name, amount, unit, shop_category })
+      .eq('id', item.id);
+
+    if (error) {
+      showToast('Fehler beim Speichern');
+      btn.disabled = false;
+      btn.textContent = 'Speichern';
+      return;
+    }
+    document.getElementById('modal-generic').classList.add('hidden');
+    showToast('Artikel aktualisiert');
   });
 }
 

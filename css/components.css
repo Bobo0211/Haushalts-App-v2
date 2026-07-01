@@ -701,3 +701,20 @@
   opacity: 0.5;
   margin-top: 2px;
 }
+
+/* ─── Monthly summary charts ─── */
+.charts-container {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+.chart-wrap {
+  text-align: center;
+}
+.chart-wrap h4 {
+  font-size: 13px;
+  margin-bottom: 8px;
+  opacity: 0.7;
+}
