@@ -686,3 +686,18 @@
   word-break: break-word;
   margin-bottom: var(--spacing-md);
 }
+
+/* ─── Shopping item recipe label ─── */
+.shopping-item-text {
+  flex: 1;
+  min-width: 0;
+}
+.shopping-item-text .item-name {
+  display: block;
+}
+.item-recipe {
+  display: block;
+  font-size: 12px;
+  opacity: 0.5;
+  margin-top: 2px;
+}

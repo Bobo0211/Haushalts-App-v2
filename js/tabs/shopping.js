@@ -2,42 +2,61 @@ import { getCurrentProfile } from '../auth.js';
 import { showToast } from '../app.js';
 
 const CATEGORIES = [
-  { key: 'produce',  label: 'Obst & Gemüse', emoji: '🥦' },
-  { key: 'dairy',    label: 'Milchprodukte',  emoji: '🧀' },
-  { key: 'meat',     label: 'Fleisch',        emoji: '🥩' },
-  { key: 'bakery',   label: 'Backwaren',      emoji: '🥖' },
-  { key: 'frozen',   label: 'Tiefkühl',       emoji: '🧊' },
-  { key: 'drinks',   label: 'Getränke',       emoji: '🥤' },
-  { key: 'hygiene',  label: 'Hygiene',        emoji: '🧴' },
-  { key: 'misc',     label: 'Sonstiges',      emoji: '📦' },
+  { value: 'Obst & Gemüse',       emoji: '🥦' },
+  { value: 'Milchprodukte',       emoji: '🧀' },
+  { value: 'Fleisch',             emoji: '🥩' },
+  { value: 'Backwaren',           emoji: '🥖' },
+  { value: 'Getreide & Beilagen', emoji: '🌾' },
+  { value: 'Tiefkühl',            emoji: '🧊' },
+  { value: 'Getränke',            emoji: '🥤' },
+  { value: 'Hygiene',             emoji: '🧴' },
+  { value: 'Drogerie & Haushalt', emoji: '🧹' },
+  { value: 'Sonstiges',           emoji: '📦' },
 ];
 
 let items = [];
 let filterCategory = 'all';
 
 export async function initShopping() {
+  await loadShoppingItems();
+}
+
+export async function loadShoppingItems() {
   const { data, error } = await window.db
     .from('shopping_items')
-    .select('*')
-    .order('shop_category')
-    .order('name');
+    .select('*, recipes(title)')
+    .order('created_at', { ascending: false });
   if (!error) items = data ?? [];
   renderShopping();
 }
 
 export function onRealtimeShopping(payload) {
   const { eventType, new: n, old: o } = payload;
-  if (eventType === 'INSERT') items = [...items, n];
-  else if (eventType === 'UPDATE') items = items.map(i => i.id === n.id ? n : i);
-  else if (eventType === 'DELETE') items = items.filter(i => i.id !== o.id);
-  renderShopping();
+  if (eventType === 'DELETE') {
+    items = items.filter(i => i.id !== o.id);
+    renderShopping();
+    return;
+  }
+  if (n.recipe_id) {
+    // Realtime payload has no JOIN data — re-fetch with recipes(title)
+    window.db.from('shopping_items').select('*, recipes(title)').eq('id', n.id).single().then(({ data }) => {
+      if (!data) return;
+      if (eventType === 'INSERT') items = [data, ...items];
+      else items = items.map(i => i.id === data.id ? data : i);
+      renderShopping();
+    });
+  } else {
+    if (eventType === 'INSERT') items = [n, ...items];
+    else items = items.map(i => i.id === n.id ? n : i);
+    renderShopping();
+  }
 }
 
 export function renderShopping() {
   const pane = document.getElementById('tab-shopping');
 
   const catOptions = CATEGORIES.map(c =>
-    `<option value="${c.key}">${c.emoji} ${c.label}</option>`
+    `<option value="${c.value}">${c.emoji} ${c.value}</option>`
   ).join('');
 
   pane.innerHTML = `
@@ -70,9 +89,9 @@ export function renderShopping() {
 
   CATEGORIES.forEach(cat => {
     const chip = document.createElement('button');
-    chip.className = 'filter-chip' + (filterCategory === cat.key ? ' active' : '');
-    chip.textContent = `${cat.emoji} ${cat.label}`;
-    chip.addEventListener('click', () => { filterCategory = cat.key; renderShopping(); });
+    chip.className = 'filter-chip' + (filterCategory === cat.value ? ' active' : '');
+    chip.textContent = `${cat.emoji} ${cat.value}`;
+    chip.addEventListener('click', () => { filterCategory = cat.value; renderShopping(); });
     filterBar.appendChild(chip);
   });
 
@@ -109,7 +128,7 @@ export function renderShopping() {
   // Group by category
   const grouped = {};
   filtered.forEach(item => {
-    const key = item.shop_category ?? 'misc';
+    const key = item.shop_category ?? 'Sonstiges';
     if (!grouped[key]) grouped[key] = [];
     grouped[key].push(item);
   });
@@ -124,10 +143,10 @@ export function renderShopping() {
   }
 
   Object.entries(grouped).forEach(([catKey, catItems]) => {
-    const cat = CATEGORIES.find(c => c.key === catKey) ?? { label: catKey, emoji: '📦' };
+    const cat = CATEGORIES.find(c => c.value === catKey) ?? { value: catKey, emoji: '📦' };
     const section = document.createElement('div');
     section.style.marginBottom = '16px';
-    section.innerHTML = `<div style="font-size:13px;font-weight:700;color:var(--text-secondary);margin-bottom:8px">${cat.emoji} ${cat.label}</div>`;
+    section.innerHTML = `<div style="font-size:13px;font-weight:700;color:var(--text-secondary);margin-bottom:8px">${cat.emoji} ${cat.value}</div>`;
 
     catItems.forEach(item => {
       const el = document.createElement('div');
@@ -136,8 +155,11 @@ export function renderShopping() {
         <button class="task-check ${item.is_checked ? 'checked' : ''}" aria-label="Abhaken">
           ${item.is_checked ? '✓' : ''}
         </button>
-        <span class="shopping-name">${escHtml(item.name)}</span>
-        ${item.amount || item.unit ? `<span style="font-size:13px;color:var(--text-secondary)">${escHtml(item.amount ?? '')} ${escHtml(item.unit ?? '')}</span>` : ''}
+        <div class="shopping-item-text">
+          <span class="item-name">${escHtml(item.name)}</span>
+          ${item.recipes?.title ? `<span class="item-recipe">${escHtml(item.recipes.title)}</span>` : ''}
+        </div>
+        ${item.amount || item.unit ? `<span style="font-size:13px;color:var(--text-secondary)">${escHtml(String(item.amount ?? ''))} ${escHtml(item.unit ?? '')}</span>` : ''}
         <button class="btn btn-icon btn-secondary btn-del-item" title="Löschen">🗑️</button>
       `;
       el.querySelector('.task-check').addEventListener('click', () => toggleItem(item));

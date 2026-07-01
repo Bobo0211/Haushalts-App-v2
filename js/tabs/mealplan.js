@@ -1,5 +1,6 @@
 import { getCurrentProfile } from '../auth.js';
 import { showToast, openModal, parseLocalDate, toLocalDateString } from '../app.js';
+import { loadShoppingItems } from './shopping.js';
 
 let mealplan = [];
 let recipes = [];
@@ -85,7 +86,10 @@ export function renderMealplan() {
         ? `<div style="display:flex;align-items:center;gap:12px;cursor:pointer" class="meal-recipe-row">
              <span style="font-size:28px">${escHtml(recipe.emoji ?? '🍽️')}</span>
              <span style="font-weight:700;flex:1">${escHtml(recipe.title)}</span>
-             <button class="btn btn-sm btn-secondary btn-change-meal">Ändern</button>
+             <div style="display:flex;gap:4px;flex-shrink:0">
+               ${recipe.ingredients?.length ? `<button class="btn btn-sm btn-secondary btn-import-ingredients">🛒 Zutaten</button>` : ''}
+               <button class="btn btn-sm btn-secondary btn-change-meal">Ändern</button>
+             </div>
            </div>`
         : `<button class="btn btn-secondary btn-block btn-assign-meal">+ Rezept zuweisen</button>`
       }
@@ -93,10 +97,11 @@ export function renderMealplan() {
 
     if (recipe) {
       card.querySelector('.meal-recipe-row').addEventListener('click', e => {
-        if (e.target.closest('.btn-change-meal')) return;
+        if (e.target.closest('.btn-change-meal') || e.target.closest('.btn-import-ingredients')) return;
         openRecipeDetail(recipe);
       });
       card.querySelector('.btn-change-meal').addEventListener('click', () => openAssignModal(iso, entry?.id));
+      card.querySelector('.btn-import-ingredients')?.addEventListener('click', () => importIngredients(recipe));
     } else {
       card.querySelector('.btn-assign-meal').addEventListener('click', () => openAssignModal(iso, null));
     }
@@ -170,6 +175,48 @@ function openRecipeDetail(recipe) {
     ${stepsHtml ? `<h3 style="margin-bottom:8px">Zubereitung</h3><ol style="padding-left:20px">${stepsHtml}</ol>` : ''}
     ${recipe.source_url ? `<a href="${escHtml(recipe.source_url)}" target="_blank" rel="noopener" style="margin-top:16px;display:block">🔗 Quelle</a>` : ''}
   `);
+}
+
+function guessCategory(ingredientName) {
+  const name = ingredientName.toLowerCase();
+  if (/milch|käse|joghurt|butter|sahne|quark|\bei\b|\beier\b|mozzarella|parmesan|feta/.test(name))
+    return 'Milchprodukte';
+  if (/apfel|banane|tomate|gurke|salat|zwiebel|knoblauch|karotte|paprika|zucchini|spinat|brokkoli|mais|erbsen|bohnen|pilz|lauch|petersilie|basilikum|zitrone|limette|orange/.test(name))
+    return 'Obst & Gemüse';
+  if (/hähnchen|hühnchen|rind|schwein|hack|speck|wurst|lachs|thunfisch|garnelen|fisch/.test(name))
+    return 'Fleisch';
+  if (/reis|nudel|spaghetti|pasta|couscous|bulgur|quinoa|linsen|kichererbsen|polenta|grieß|vollkorn/.test(name))
+    return 'Getreide & Beilagen';
+  if (/mehl|zucker|brot|brötchen|toast|haferflocken|backpulver/.test(name))
+    return 'Backwaren';
+  if (/tiefkühl|gefroren/.test(name))
+    return 'Tiefkühl';
+  if (/saft|wasser|cola|bier|wein/.test(name))
+    return 'Getränke';
+  if (/shampoo|duschgel|seife|waschmittel|spülmittel|deo|zahnpasta|klopapier/.test(name))
+    return 'Drogerie & Haushalt';
+  return 'Sonstiges';
+}
+
+async function importIngredients(recipe) {
+  const profile = getCurrentProfile();
+  const ingredients = recipe.ingredients ?? [];
+  if (!ingredients.length) return;
+
+  const inserts = ingredients.map(ing => ({
+    name:          ing.name,
+    amount:        ing.amount ?? null,
+    unit:          ing.unit ?? null,
+    shop_category: guessCategory(ing.name),
+    is_checked:    false,
+    recipe_id:     recipe.id,
+    added_by:      profile?.id ?? null,
+  }));
+
+  const { error } = await window.db.from('shopping_items').insert(inserts);
+  if (error) { showToast('Fehler beim Importieren'); return; }
+  showToast(`${ingredients.length} Zutaten von „${recipe.title}" zur Einkaufsliste hinzugefügt`);
+  setTimeout(() => loadShoppingItems(), 500);
 }
 
 export function parseSteps(notes) {
